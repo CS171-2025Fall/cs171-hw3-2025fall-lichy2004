@@ -58,3 +58,15 @@ compile_commands.json
 *.old
 *.tar.gz
 data/sphere.obj
+
+build
+cmake-build*
+out
+vs
+.idea
+.vscode
+.vs
+.zed
+.cache/
+cursor/
+

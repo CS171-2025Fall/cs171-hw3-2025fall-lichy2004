@@ -1,6 +1,16 @@
 # All packages required
 CPMAddPackage("gh:fmtlib/fmt#9.1.0")
-CPMAddPackage("gh:nlohmann/json@3.11.2")
+
+# 使用 CPM 下载 nlohmann-json，但设置为使用本地缓存
+# 避免每次都从网络下载
+CPMAddPackage(
+  NAME nlohmann_json
+  VERSION 3.11.2
+  URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
+  OPTIONS
+    "JSON_BuildTests OFF"
+)
+
 CPMAddPackage("gh:tinyobjloader/tinyobjloader#v2.0.0rc10")
 CPMAddPackage("gh:richgel999/miniz#3.0.2")
 

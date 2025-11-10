@@ -41,28 +41,23 @@ void IntersectionTestIntegrator::render(ref<Camera> camera, ref<Scene> scene) {
       for (int sample = 0; sample < spp; sample++) {
         // TODO(HW3): generate #spp rays for each pixel and use Monte Carlo
         // integration to compute radiance.
-        //
-        // Useful Functions:
-        //
-        // @see Sampler::getPixelSample for getting the current pixel sample
-        // as Vec2f.
-        //
-        // @see Camera::generateDifferentialRay for generating rays given
-        // pixel sample positions as 2 floats.
-
-        // You should assign the following two variables
-        // const Vec2f &pixel_sample = ...
-        // auto ray = ...
-
-        // After you assign pixel_sample and ray, you can uncomment the
-        // following lines to accumulate the radiance to the film.
-        //
-        //
-        // Accumulate radiance
-        // assert(pixel_sample.x >= dx && pixel_sample.x <= dx + 1);
-        // assert(pixel_sample.y >= dy && pixel_sample.y <= dy + 1);
-        // const Vec3f &L = Li(scene, ray, sampler);
-        // camera->getFilm()->commitSample(pixel_sample, L);
+        // 为每个像素生成多条光线进行采样，实现抗锯齿
+        
+        // 1. 获取像素采样位置（包含亚像素偏移）
+        // sampler.getPixelSample() 返回 [dx + random, dy + random]，其中 random ∈ [0,1)
+        const Vec2f &pixel_sample = sampler.getPixelSample();
+        
+        // 2. 生成微分光线
+        // 根据像素采样位置生成光线，用于光线追踪
+        auto ray = camera->generateDifferentialRay(pixel_sample.x, pixel_sample.y);
+        
+        // 3. 计算该光线的辐射度
+        // Li 函数会追踪光线并计算最终的颜色值
+        const Vec3f &L = Li(scene, ray, sampler);
+        
+        // 4. 将结果提交到胶片
+        // Film 会自动对多次采样的结果进行平均
+        camera->getFilm()->commitSample(pixel_sample, L);
       }
     }
   }
@@ -98,13 +93,18 @@ Vec3f IntersectionTestIntegrator::Li(
       // We should follow the specular direction
       // TODO(HW3): call the interaction.bsdf->sample to get the new direction
       // and update the ray accordingly.
-      //
-      // Useful Functions:
-      // @see BSDF::sample
-      // @see SurfaceInteraction::spawnRay
-      //
-      // You should update ray = ... with the spawned ray
-      UNIMPLEMENTED;
+      // 当光线击中完美折射材质时，根据折射方向继续追踪
+      
+      // 1. 调用 BSDF 采样函数获取折射方向
+      // sample 函数会设置 interaction.wi 为折射后的入射方向
+      Float pdf;
+      Vec3f bsdf_value = interaction.bsdf->sample(interaction, sampler, &pdf);
+      
+      // 2. 更新光线为从交点沿折射方向发射的新光线
+      // spawnRay 会自动处理原点偏移，避免自相交问题
+      ray = interaction.spawnRay(interaction.wi);
+      
+      // 3. 继续循环，追踪折射后的光线
       continue;
     }
 
@@ -134,21 +134,21 @@ Vec3f IntersectionTestIntegrator::directLighting(
   auto test_ray       = DifferentialRay(interaction.p, light_dir);
 
   // TODO(HW3): Test for occlusion
-  //
-  // You should test if there is any intersection between interaction.p and
-  // point_light_position using scene->intersect. If so, return an occluded
-  // color. (or Vec3f color(0, 0, 0) to be specific)
-  //
-  // You may find the following variables useful:
-  //
-  // @see bool Scene::intersect(const Ray &ray, SurfaceInteraction &interaction)
-  //    This function tests whether the ray intersects with any geometry in the
-  //    scene. And if so, it returns true and fills the interaction with the
-  //    intersection information.
-  //
-  //    You can use iteraction.p to get the intersection position.
-  //
-  UNIMPLEMENTED;
+  // 测试从交点到光源的路径是否被遮挡（阴影测试）
+  
+  // 测试阴影光线是否与场景中的任何几何体相交
+  SurfaceInteraction shadow_interaction;
+  bool occluded = scene->intersect(test_ray, shadow_interaction);
+  
+  // 如果有交点，检查交点是否在光源之前
+  // 使用 EPS 避免浮点数精度问题
+  if (occluded) {
+    Float dist_to_occlusion = Norm(shadow_interaction.p - interaction.p);
+    if (dist_to_occlusion < dist_to_light - EPS) {
+      // 被遮挡，返回黑色（无光照）
+      return Vec3f(0, 0, 0);
+    }
+  }
 
   // Not occluded, compute the contribution using perfect diffuse diffuse model
   // Perform a quick and dirty check to determine whether the BSDF is ideal
@@ -158,19 +158,25 @@ Vec3f IntersectionTestIntegrator::directLighting(
 
   if (bsdf != nullptr && is_ideal_diffuse) {
     // TODO(HW3): Compute the contribution
-    //
-    // You can use bsdf->evaluate(interaction) * cos_theta to approximate the
-    // albedo. In this homework, we do not need to consider a
-    // radiometry-accurate model, so a simple phong-shading-like model is can be
-    // used to determine the value of color.
-
+    // 计算点光源的直接光照，使用简化的 Lambert 漫反射模型
+    
     // The angle between light direction and surface normal
+    // Lambert 漫反射：余弦项表示光照强度随入射角度的变化
     Float cos_theta =
         std::max(Dot(light_dir, interaction.normal), 0.0f);  // one-sided
-
-    // You should assign the value to color
-    // color = ...
-    UNIMPLEMENTED;
+    
+    // 计算反照率（albedo）
+    // IdealDiffusion::evaluate 返回 albedo / PI，所以需要乘以 PI 恢复
+    Vec3f albedo = bsdf->evaluate(interaction) * PI;
+    
+    // 计算点光源的光照贡献
+    // 简化的渲染方程：L = flux * albedo * cos_theta / (4 * PI * dist^2)
+    // - point_light_flux: 光源的辐射通量
+    // - albedo: 表面的反射率
+    // - cos_theta: Lambert 余弦项
+    // - 4 * PI * dist^2: 点光源的球面立体角衰减
+    color = point_light_flux * albedo * cos_theta / 
+            (4.0f * PI * dist_to_light * dist_to_light);
   }
 
   return color;

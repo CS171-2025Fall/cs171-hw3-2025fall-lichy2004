@@ -25,8 +25,8 @@
 % Title portion
 \title{Assignment 1:\\ {Exploring OpenGL Programming}} 
 
-\author{Name: \quad \\ student number:\
-\\email: \quad \texttt{}}
+\author{Name: Chengyang Li\quad \\ student number: 2022533154\
+\\email: \quad \texttt{lichy22@shanghaitech.edu.cn}}
 
 % Document starts
 \begin{document}
@@ -35,8 +35,155 @@
 \vspace*{2 ex}
 
 \section{Introduction}
+[must] Compile the source code and configure the language server environment.
+
+[must] Implement ray-triangle intersection functionality.
+
+[must] Implement ray-AABB intersection functionality.
+
+[must] Implement the BVH (Bounding Volume Hierarchy) construction.
+
+[must] Implement the IntersectionTestIntegrator and PerfectRefraction material for basic ray tracing validation, handing refractive and solid surface interactions
+
+[must] Implement a direct lighting function with diffuse BRDF and shadow testing.
+
+[must] Implement anti-aliasing via multi-ray sampling per pixel within a sub-pixel aperture.
+
 \section{Implementation Details}
+
+This section provides detailed descriptions of the implementation locations and core algorithms for each task.
+
+\subsection{Ray-Triangle Intersection (10\%)}
+
+\textbf{Implementation Location:} \texttt{src/accel.cpp}, lines 74-123, function \texttt{TriangleIntersect}
+
+\textbf{Algorithm Description:} Implements ray-triangle intersection using the Möller-Trumbore algorithm. This algorithm directly computes barycentric coordinates and intersection distance by solving a linear system.
+
+\textbf{Key Steps:}
+\begin{itemize}
+    \item Compute triangle edge vectors $e_1 = v_1 - v_0$ and $e_2 = v_2 - v_0$
+    \item Compute auxiliary vector $p = \text{dir} \times e_2$ and determinant $\text{det} = e_1 \cdot p$
+    \item Compute barycentric coordinates $u = (t_{vec} \cdot p) / \text{det}$ and $v = (\text{dir} \cdot q) / \text{det}$
+    \item Compute intersection distance $t = (e_2 \cdot q) / \text{det}$
+    \item Verify boundary conditions: $u \geq 0, v \geq 0, u + v \leq 1, t \in [t_{min}, t_{max}]$
+\end{itemize}
+
+\subsection{Ray-AABB Intersection (10\%)}
+
+\textbf{Implementation Location:} \texttt{src/accel.cpp}, lines 32-75, function \texttt{AABB::intersect}
+
+\textbf{Algorithm Description:} Implements ray-AABB intersection using the Slab method. Treats the AABB as the intersection of three pairs of parallel planes and computes the ray intersection with each pair.
+
+\textbf{Key Steps:}
+\begin{itemize}
+    \item Compute entry time $t_0$ and exit time $t_1$ for each of the X, Y, Z axes
+    \item Handle cases where ray direction is negative (swap $t_0$ and $t_1$)
+    \item Compute overall entry time $t_{in} = \max(t_{0x}, t_{0y}, t_{0z})$
+    \item Compute overall exit time $t_{out} = \min(t_{1x}, t_{1y}, t_{1z})$
+    \item Check intersection condition: $t_{out} \geq t_{in}$ and $t_{out} \geq 0$
+\end{itemize}
+
+\subsection{BVH Construction (25\%)}
+
+\textbf{Implementation Location:} \texttt{include/rdr/bvh\_tree.h}, lines 127-214, function \texttt{BVHTree::build}
+
+\textbf{Algorithm Description:} Implements recursive BVH tree construction using median-based heuristics for space partitioning.
+
+\textbf{Key Steps:}
+\begin{itemize}
+    \item \textbf{Termination Condition (lines 136-155):} Create a leaf node when the number of nodes $\leq 1$ or depth $\geq$ CUTOFF\_DEPTH
+    \item \textbf{Median Split (lines 178-186):}
+    \begin{itemize}
+        \item Select the longest dimension of the bounding box as the split axis
+        \item Use \texttt{std::nth\_element} to perform median split based on centroid positions
+        \item Divide the node array into two parts: $[\text{span\_left}, \text{split})$ and $[\text{split}, \text{span\_right})$
+    \end{itemize}
+    \item Recursively build left and right subtrees
+    \item Merge the bounding boxes of subtrees as the parent node's bounding box
+\end{itemize}
+
+\subsection{IntersectionTestIntegrator (25\%)}
+
+This task contains three sub-components:
+
+\subsubsection{Multi-ray Sampling and Anti-aliasing}
+
+\textbf{Implementation Location:} \texttt{src/integrator.cpp}, lines 41-61, function \texttt{IntersectionTestIntegrator::render}
+
+\textbf{Implementation Description:}
+\begin{itemize}
+    \item Generate \texttt{spp} (samples per pixel) rays for each pixel
+    \item Use \texttt{Sampler::getPixelSample()} to obtain sampling positions with sub-pixel random offsets
+    \item Generate differential rays and compute radiance
+    \item Submit results to the film, which automatically performs Monte Carlo integration averaging
+\end{itemize}
+
+\subsubsection{Refraction Ray Tracing}
+
+\textbf{Implementation Location:} \texttt{src/integrator.cpp}, lines 92-109, function \texttt{IntersectionTestIntegrator::Li}
+
+\textbf{Implementation Description:}
+\begin{itemize}
+    \item Use a loop to trace rays until hitting a diffuse surface or exceeding maximum depth
+    \item Detect surface type (ideal diffuse, perfect refraction, or other)
+    \item For perfect refraction surfaces, call the BSDF sampling function to obtain the refraction direction
+    \item Use \texttt{spawnRay} to generate new rays to avoid self-intersection
+    \item Continue tracing until finding a diffuse surface
+\end{itemize}
+
+\subsubsection{Direct Lighting Computation}
+
+\textbf{Implementation Location:} \texttt{src/integrator.cpp}, lines 131-183, function \texttt{IntersectionTestIntegrator::directLighting}
+
+\textbf{Implementation Description:}
+\begin{itemize}
+    \item \textbf{Shadow Testing (lines 136-151):}
+    \begin{itemize}
+        \item Cast shadow rays from the intersection point towards the light source
+        \item Check for occluders
+        \item If an occluder is found before the light source, return black (no lighting)
+    \end{itemize}
+    \item \textbf{Lighting Computation (lines 159-180):}
+    \begin{itemize}
+        \item Use Lambert diffuse model: $L = \Phi \cdot \rho \cdot \cos\theta / (4\pi d^2)$
+        \item Where $\Phi$ is light flux, $\rho$ is albedo, $\theta$ is incident angle, $d$ is distance
+        \item Obtain albedo through BSDF's \texttt{evaluate} function
+    \end{itemize}
+\end{itemize}
+
+\subsection{Perfect Refraction Material (20\%)}
+
+\textbf{Implementation Location:} \texttt{src/bsdf.cpp}, lines 90-114, function \texttt{PerfectRefraction::sample}
+
+\textbf{Algorithm Description:} Implements physical simulation of perfect refraction and total internal reflection.
+
+\textbf{Key Steps:}
+\begin{itemize}
+    \item Determine whether the ray is entering or leaving the medium based on the incident direction
+    \item Adjust the normal direction to ensure it points to the correct hemisphere
+    \item Use Snell's law to compute the refraction direction: $\eta_1 \sin\theta_1 = \eta_2 \sin\theta_2$
+    \item Call the \texttt{Refract} function to attempt refraction
+    \item If total internal reflection occurs ($\sin\theta_2 > 1$), use the \texttt{Reflect} function to compute the reflection direction
+    \item Set \texttt{interaction.wi} to the computed direction
+\end{itemize}
+
+\subsection{Anti-Aliasing (5\%)}
+
+\textbf{Implementation Location:} Integrated in the \texttt{IntersectionTestIntegrator::render} function
+
+\textbf{Implementation Description:} Anti-aliasing is achieved through multiple random samples within each pixel. The sampler automatically generates random offsets within the pixel range $[x, x+1) \times [y, y+1)$, and the film automatically averages the results of multiple samples, effectively reducing aliasing artifacts.
+
 \section{Results}
+
+This section presents the rendering results of the implemented ray tracer.
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{../assignment3_files/cbox_no_light_refract.png}
+    \caption{Cornell box scene with a refractive glass sphere. The scene demonstrates ray tracing with refraction, direct lighting, and anti-aliasing.}
+    \label{fig:cbox_refract}
+\end{figure}
 
 \end{document}
 

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<!-- saved from url=(0107)https://faculty.sist.shanghaitech.edu.cn/faculty/liuxp/course/cs171/assignment/assignment3/assignment3.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <style>
+      body {
+        font-family: Trebuchet MS, sans-serif;
+      }
+    </style>
+    
+    <meta name="viewport" content="width=device-width initial-scale=1">
+    <title>assignment3</title>
+  </head>
+  <body>
+    <h1 id="cs171-assignment-4-global-illumination" align="center">
+      CS171 Assignment 3: Basic Ray Tracing
+    </h1>
+    <h2 id="introduction">Introduction</h2>
+    <p>
+      In this assignment, you will implement several core components of a
+      ray-tracing renderer, including ray-triangle intersection, BVH tree
+      construction and traversal. And rendering Cornell box with simple
+      direct illumination.
+    </p>
+    <p>
+      In the following, we will give you the specifics about what you need to
+      accomplish in this assignment, as well as full documentation in order to
+      assist your programming.
+    </p>
+    <h2 id="programming-requirements">Programming Requirements</h2>
+    <ul>
+      <li>
+        <strong>[must]</strong> Compile the source code and configure the language server environment. [5%]
+      </li>
+      <li>
+        <strong>[must]</strong> Implement ray-triangle intersection functionality. [10%]
+      </li>
+      <li>
+        <strong>[must]</strong> Implement ray-AABB intersection functionality. [10%]
+      </li>
+      <li>
+        <strong>[must]</strong> Implement the BVH (Bounding Volume Hierarchy) construction. [25%]
+      </li>
+      <li>
+        <strong>[must]</strong> Implement the <code>IntersectionTestIntegrator</code> and <code>PerfectRefraction</code> material for basic ray tracing validation,
+        handing refractive and solid surface interactions [25%]
+      </li>
+      <li>
+        <strong>[must]</strong> Implement a direct lighting function with diffuse BRDF and shadow testing. [20%]
+      </li>
+      <li>
+        <strong>[must]</strong> Implement anti-aliasing via multi-ray sampling per pixel within a sub-pixel aperture. [5%]
+      </li>
+      <li>
+        <strong>[optional]</strong> Implement support for multiple light sources. [5%]
+      </li>
+      <li>
+        <strong>[optional]</strong> Implement rectangular area lights with soft shadow generation. [15%]
+      </li>
+      <li>
+        <strong>[optional]</strong> Implement environment lighting via environment maps. [15%]
+      </li>
+      <li>
+        <strong>[optional]</strong> Implement texture mapping support. [15%]
+      </li>
+      <li>
+        <strong>[optional]</strong> Implement GPU-parallel BVH construction following the algorithm in <a href="https://research.nvidia.com/sites/default/files/pubs/2012-06_Maximizing-Parallelism-in/karras2012hpg_paper.pdf">Karras (2012)</a>. [30%]
+      </li>
+    </ul>
+    <h2 id="notes">Notes</h2>
+    <ul>
+      <li>
+        It is strongly recommended to read
+        <a href="https://pbr-book.org/">PBRT</a>'s corresponding section as a
+        reference.
+      </li>
+      <li>
+        Please note that you are <strong>NOT</strong> allowed to use OpenGL in
+        this assignment and <strong>NOT</strong> allowed to use third-party
+        libraries except for the libraries we give in the framework.
+      </li>
+      <li>
+        As the computation in this assignment is quite heavy, we encourage you
+        to use OpenMP (inside Phase 5.1) for acceleration. You may apply for an
+        account on the SIST HPC cluster if necessary.
+      </li>
+      <li>
+        The resulting image in your report needs to be clear enough, i.e. the
+        image resolution should be at least 256x256, and the samples per pixel
+        (spp) should be at least 4 for handling antialiasing. You are
+        free to change the scene settings inside, for example,
+        <code>data/cbox.json</code>.
+      </li>
+      <li>
+        To verify your implemented algorithms, you can choose or build your own
+        scene settings in the <code>data/</code> folder.
+      </li>
+    </ul>
+    <h2 id="submission"><strong>Submission</strong></h2>
+    <p>
+      You are required to submit the following things through the GitHub
+      repository:
+    </p>
+    <ul>
+      <li>Project code in the Coding folder.</li>
+      <li>
+        A PDF-formatted report which describes what you have done in the Report
+        folder.
+      </li>
+    </ul>
+    <p>
+      Submission deadline:
+      <strong style="
+          color: rgb(204, 0, 0);
+          font-family: &#39;Trebuchet MS&#39;, sans-serif;
+          font-size: medium;
+          font-style: normal;
+          font-variant-ligatures: normal;
+          font-variant-caps: normal;
+          letter-spacing: normal;
+          orphans: 2;
+          text-align: start;
+          text-indent: 0px;
+          text-transform: none;
+          widows: 2;
+          word-spacing: 0px;
+          -webkit-text-stroke-width: 0px;
+          white-space: normal;
+          text-decoration-thickness: initial;
+          text-decoration-style: initial;
+          text-decoration-color: initial;
+        ">
+        22:00, Nov. 21, 2025</strong></p>
+    <h2 id="grading-rules"><strong>Grading Rules</strong></h2>
+    <ul>
+      <li>
+        You can choose to do the <strong>[optional]</strong> item(s), and if you
+        choose to do it/them; you will get an additional score(s) based on the
+        additional work you have done. But the maximum additional score will not
+        exceed 30% of the entire score of this assignment.
+      </li>
+      <li>
+        <strong>NO CHEATING!</strong> If found, your score for the entire
+        assignment is zero. You are required to work
+        <strong>INDEPENDENTLY</strong>. We fully understand that implementations
+        could be similar somewhere, but they cannot be identical. To avoid being
+        evaluated inappropriately, please show your understanding of the code to
+        TAs.
+      </li>
+      <li>
+        Late submission of your assignment will be subject to a score deduction.
+      </li>
+    </ul>
+    <h2 id="skeleton-project-report-template">
+      Skeleton Project/ Report Template
+    </h2>
+    <ul>
+      <li>
+        The skeleton program and report template will be provided once you
+        accept the assignment link of GitHub Classroom which we published on the
+        Piazza. If you accept the assignment through the link properly, a
+        repository which contains the skeleton project and report template will
+        be created under your GitHub account.
+      </li>
+      <li>
+        Please <strong>follow the template</strong> to prepare your Report.
+      </li>
+    </ul>
+    <h2 id="implementation-guide">Implementation Guide</h2>
+    <p>
+      The framework is large and complex, and you are not expected (and not
+      recommended) to understand the whole framework before starting
+      programming. Again, we recommend that you check out
+      <a href="https://faculty.sist.shanghaitech.edu.cn/faculty/liuxp/course/cs171/assignment/assignment3/docs/RDR171_A_Teaching_Oriented_Renderer.pdf">our documentation</a>
+      for a more detailed explanation of the framework and tasks.
+      <u><i>Please resort to TAs for any difficulties you meet in understanding
+          the code framework</i></u>.
+    </p>
+    <p>
+        Also note that you can search <code>TODO(HW3)</code> in the codebase to quickly locate the places you need to implement.
+    </p>
+    <h3 id="git-classroom">Git Classroom</h3>
+    <p>
+      Accept the assignment in GitHub Classroom using
+      <a href="https://classroom.github.com/a/BmKThNkC">this link</a> or
+		download the <a href="https://faculty.sist.shanghaitech.edu.cn/faculty/liuxp/course/cs171/assignment/assignment3/assignment3-code-template.zip">zip file</a> to start your assignment.</p>
+
+    <h3>
+      Set Up Development Environment
+    </h3>
+    <p>
+      After you accept the assignment in GitHub Classroom, clone the repository and set up your development environment.
+      We recommend using VS Code with <code>clangd</code>. Please refer to
+      <a href="https://clangd.llvm.org/installation">this guide</a> to get started.
+    </p>
+
+    <h3>
+      Ray-Triangle Intersection
+    </h3>
+    <p>
+      Complete the implementation of the ray-triangle intersection function <code>TriangleIntersect</code>
+      in <code>src/accel.cpp</code>. You can use either the geometric approach, such as
+      <a href="https://courses.cs.washington.edu/courses/csep557/10au/lectures/triangle_intersection.pdf">this</a>
+      or
+      <a href="https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution.html">this</a>,
+      or the linear-equation-solving approach discussed in recitation.
+   </p>
+
+    <h3>
+      Ray-AABB Intersection
+    </h3>
+    <p>
+      Complete the AABB (Axis-Aligned Bounding Box) intersection in the function <code>AABB::intersect</code> in the file <code>src/accel.cpp</code>.
+      You can refer to <a href="https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.html">this article</a>
+      for details about the algorithm.
+    </p>
+    <p>
+      After implementing these two functions, you can test your implementation by running:
+      </p><pre>        cmake -B build
+        cmake --build build
+        ./build/tests/intersection_tests
+      </pre>
+      Note that the location of the executable may vary depending on your build system.
+    <p></p>
+
+    <h3>
+      BVH Construction
+    </h3>
+
+    <p>
+      Implement the function <code>BVHTree&lt;_&gt;::build</code> in <code>bvh_tree.h</code>. Refer to the lecture slides, recitation materials, or the warmup assignment on BVH construction for guidance.
+    </p>
+
+    <p>
+    We recommend the following resources for a comprehensive understanding of BVH:
+    </p>
+    <ul>
+      <li><a href="https://how.dev/answers/what-are-bounding-volume-hierarchies">Here</a> is a detailed explanation of BVH with dynamic demonstrations.</li>
+      <li><a href="https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-acceleration-structure/bounding-volume-hierarchy-BVH-part1.html">Here</a> provides a practical guide covering the fundamentals of BVH.</li>
+      <li><a href="https://www.lufei.ca/posts/BVH.html">Here</a> provides an article for a more in-depth and advanced topic of BVH structures.</li>
+    </ul>
+
+    <p>
+      After implementing this functions, you can test your implementation by running:
+      </p><pre>        cmake -B build
+        cmake --build build
+        ./build/tests/bvh_tests
+      </pre>
+      Note that the location of the executable may vary depending on your build system.
+    <p></p>
+
+    <h3>
+      Implement a Direct Illumination Integrator
+    </h3>
+
+    <p>
+      Implement the <code>IntersectionTestIntegrator</code> class in <code>src/integrator.cpp</code>.
+      This integrator should perform the following tasks:
+    </p>
+
+    <ul>
+      <li>Cast multiple rays per pixel with small offsets for anti-aliasing.</li>
+      <li>For each ray, find the closest intersection with the scene geometry using the BVH.</li>
+      <li>Cast a shadow ray from the intersection point toward the light source to determine visibility.</li>
+      <li>For each visible intersection, compute direct illumination from the light source.</li>
+    </ul>
+
+    <p>You may use any simple shading model, such as Phong shading, to compute direct illumination.</p>
+
+    <h3>
+      Integrate with Refractive Materials
+    </h3>
+
+    <p>
+      Modify the function <code>Li</code> in <code>src/integrator.cpp</code> and
+      <code>PerfectRefraction::sample</code> in <code>src/bsdf.cpp</code> so that rays are perfectly
+      refracted when they hit refractive materials.
+    </p>
+
+    <ul>
+      <li>Cast multiple rays per pixel with small offsets for anti-aliasing.</li>
+      <li>For each ray, <strong style="color: blue">trace the ray through transparent objects until it first intersects a non-transparent (solid) object</strong>.</li>
+      <li>Cast a shadow ray from that intersection point toward the light source to determine visibility.</li>
+      <li>For each visible intersection, compute direct illumination from the light source.</li>
+    </ul>
+
+    <h3>
+      Final Results
+    </h3>
+
+    <p>
+      After completing these tasks, you should be able to render images similar to the following:
+    </p>
+
+    <pre>      cmake --build build
+      ./build/src/renderer data/cbox_no_light_refract.json -o cbox_no_light_refract.exr
+      # or the following if you want to debug without refraction
+      ./build/src/renderer data/cbox_no_light.json -o cbox_no_light.exr
+    </pre>
+
+    You should see an output image saved in the <code>data/cbox_no_light_refract.exr</code>.
+
+
+
+    <p align="center">
+      <img src="./assignment3_files/cbox_no_light_refract.png" alt="Rendered Cornell Box" style="width: 16em;">
+    </p>
+
+    <p>
+      The image shows the glass pane refracting camera rays while the boxes cast shadows on the floor.
+    </p>
+  
+
+</body></html>

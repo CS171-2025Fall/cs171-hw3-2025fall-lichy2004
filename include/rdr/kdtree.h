@@ -5,7 +5,8 @@
 #include <limits>
 #include <vector>
 
-#ifdef __GNUC__
+// 只在真正的 GCC（非 Clang）下使用 GNU 扩展
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__APPLE__)
 #include <ext/pb_ds/priority_queue.hpp>
 #else
 #include <queue>
@@ -184,7 +185,8 @@ public:
       return SquareNorm(getIterator(a)->getPosition() - point) <
              SquareNorm(getIterator(b)->getPosition() - point);
     };
-#ifdef __GNUC__
+// 只在真正的 GCC（非 Clang）下使用 GNU 扩展
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__APPLE__)
     __gnu_pbds::priority_queue<IndexType,
         std::function<bool(const IndexType &, const IndexType &)>>
         heap(comp);

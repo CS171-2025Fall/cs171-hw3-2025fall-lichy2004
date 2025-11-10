@@ -134,16 +134,11 @@ typename BVHTree<_>::IndexType BVHTree<_>::build(
     prebuilt_aabb.unionWith(nodes[span_index].getAABB());
 
   // TODO(HW3): setup the stop criteria
+  // 停止条件：只有一个节点或达到最大深度时，创建叶子节点
   //
-  // You should fill in the stop criteria here.
-  //
-  // You may find the following variables useful:
-  //
-  // @see CUTOFF_DEPTH: The maximum depth you would like to build
-  // @see span_left: The left index of the current span
-  // @see span_right: The right index of the current span
-  //
-  /* if ( */ UNIMPLEMENTED; /* ) */
+  // 1. 如果节点数量 <= 1，说明已经无法再分割，创建叶子节点
+  // 2. 如果深度 >= CUTOFF_DEPTH，说明达到最大深度，避免递归过深
+  if (span_right - span_left <= 1 || depth >= CUTOFF_DEPTH)
   {
     // create leaf node
     const auto &node = nodes[span_left];
@@ -174,14 +169,21 @@ use_median_heuristic:
     // clang-format off
 
     // TODO(HW3): implement the median split here
+    // 使用 std::nth_element 按照质心的指定维度进行中位数分割
     //
-    // You should sort the nodes in [span_left, span_right) according to
-    // their centroid's `dim`-th dimension, such that all nodes in
-    // [span_left, split) are less than those in [split, span_right)
-    //
-    // You may find `std::nth_element` useful here.
-
-    UNIMPLEMENTED;
+    // std::nth_element 会重新排列 [span_left, span_right) 范围内的元素，
+    // 使得 split 位置的元素是中位数，且：
+    // - [span_left, split) 中的元素都小于 split 位置的元素
+    // - [split, span_right) 中的元素都大于等于 split 位置的元素
+    std::nth_element(
+        nodes.begin() + span_left,
+        nodes.begin() + split,
+        nodes.begin() + span_right,
+        [dim](const NodeType &a, const NodeType &b) {
+          // 按照包围盒中心点的第 dim 维进行比较
+          return a.getAABB().getCenter()[dim] < b.getAABB().getCenter()[dim];
+        }
+    );
 
     // clang-format on
   } else if (hprofile == EHeuristicProfile::ESurfaceAreaHeuristic) {

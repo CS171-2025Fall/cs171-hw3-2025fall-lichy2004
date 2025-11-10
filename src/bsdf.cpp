@@ -88,23 +88,30 @@ Vec3f PerfectRefraction::sample(
   Float eta_corrected = entering ? eta : 1.0F / eta;
 
   // TODO(HW3): implement the refraction logic here.
-  //
-  // You should set the `interaction.wi` to the direction of the "in-coming
-  // light" after refraction or reflection. Note that `interaction.wi` should
-  // always point away from the surface.
-  //
-  // You may find the following values useful:
-  //
-  // `interaction.wo`: the out-going view direction, pointing away from the
-  // surface.
-  // `normal`: the normal of the surface at the interaction point, pointing
-  // away from the surface.
-  //
-  // You may find the following functions useful:
-  // @see Refract for refraction calculation.
-  // @see Reflect for reflection calculation.
-
-  UNIMPLEMENTED;
+  // 实现完美折射（或全内反射）的采样函数
+  
+  // 确保法线指向正确的半球
+  // 如果光线从外部进入介质，法线应该指向外部（与 wo 同侧）
+  // 如果光线从内部射出介质，法线应该指向内部（与 wo 反侧）
+  Vec3f effective_normal = entering ? normal : -normal;
+  
+  // 尝试折射
+  // Refract 函数会根据 Snell 定律计算折射方向
+  // 参数：入射方向(wo)、法线、折射率比(1/eta)、输出折射方向
+  Vec3f refracted_direction;
+  bool can_refract = Refract(interaction.wo, effective_normal, 
+                              1.0f / eta_corrected, refracted_direction);
+  
+  // 设置入射方向 wi
+  if (can_refract) {
+    // 发生折射：设置 wi 为折射方向
+    // 注意：Refract 返回的方向已经是指向远离表面的方向
+    interaction.wi = refracted_direction;
+  } else {
+    // 发生全内反射：设置 wi 为反射方向
+    // 当入射角大于临界角时，会发生全内反射
+    interaction.wi = Reflect(interaction.wo, effective_normal);
+  }
 
   // Set the pdf and return value, we dont need to understand the value now
   if (pdf != nullptr) *pdf = 1.0F;
